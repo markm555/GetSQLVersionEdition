@@ -1,0 +1,81 @@
+$infile = $args[0]
+$outfile = $args[1]
+ 
+#$infile = ".\servers2.txt"
+#$outfile = ".\outfile.csv"
+ 
+if(!$infile)
+    {
+    write-host
+        ""
+        "INVALID ARGUMENT"
+        ""
+        "GetSQLProperties has two arguments"
+        ""
+        "The first argument is for a file containing a list of SQL Servers to be Queried"
+        "The second argument if for an output file containing the results of the query in a comma delimited format"
+        "If the second argument is ommitted the results will be displayed in your powershell window"
+        ""
+        "The format of the input file is as follows:"
+        ""
+        "Server1"
+        "Server2"
+        "Server3"
+        "Server3\namedinstance"
+        "Server4"
+        "Server5"
+        ""
+        "Usage:"
+        ""
+        "GetSQLProperties c:\filepath\infile.txt"
+        "GetSQLProperties c:\filepath\infile.txt c:\filepath\outfile.txt"
+        ""
+        ""
+    }
+Else
+    {
+    $Servers = Get-Content $infile
+ 
+    Foreach ($value in $Servers)
+ 
+    {
+        $pversion = ""
+        $plevel = ""
+        $pedition = ""
+ 
+         try
+            {
+            $con = new-object System.Data.SqlClient.SqlConnection "Server=$value;Pooling=false;Integrated Security=true"
+            $con.Open()
+ 
+            $cmd = $con.CreateCommand()
+            $cmd.CommandText = "
+                     SELECT SERVERPROPERTY('productversion') productversion,
+                            SERVERPROPERTY('productlevel') productlevel,
+                            SERVERPROPERTY('edition') edition
+                     "
+           
+            $rdr = $cmd.ExecuteReader()
+            $rdr.Read()
+                $pversion = $rdr[0]
+                $plevel =     $rdr[1]
+                $pedition =  $rdr[2]
+            $rdr.Close();
+ 
+       
+            $con.Close()
+       
+            if(!$outfile)
+                {write-host $value, $pversion, $plevel, $pedition}
+            Else
+                {"{0}","`t","{1}","`t","{2}","`t","{3}" -f $value,$pversion,$plevel,$pedition | out-file $outfile -Append}
+            }
+         Catch
+            {
+                if(!$outfile)
+                    {Write-host -f red $value, " Could not connect"}
+                Else
+                    {"{0}","`t","Could Not Connect" -f $value | out-file $outfile -Append}
+            }
+    }
+}
